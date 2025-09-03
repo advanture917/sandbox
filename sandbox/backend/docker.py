@@ -98,14 +98,14 @@ import os
 
 # 安装用户指定的依赖库（静默模式）
 libraries = {libraries}
-for lib in libraries:
+if libraries is not None:
+    for lib in libraries:
     # 使用--quiet参数减少输出，并重定向stdout和stderr
-    subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "--quiet", lib],
-        stdout=open(os.devnull, 'w'),
-        stderr=subprocess.STDOUT
-    )
-
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--quiet", lib],
+            stdout=open(os.devnull, 'w'),
+            stderr=subprocess.STDOUT
+        )
 # 执行用户提供的代码
 {code}
                 """
@@ -113,12 +113,13 @@ for lib in libraries:
                 pass
 
         command = ["python", "-c", install_code]
+        print(f"{install_code}")
         result = container.exec_run(command)
-        print(f"✅✅{result.output.decode('utf-8')}")  # 转换为字符串并打印
-        return result
+        return result.output.decode('utf-8')
 
     def remove_container (self,container :Any):
-        pass
+        return container.remove(v = True)
+
 
     def copy_to_container(self, container: Any, src: str, dest: str, **_kwargs: Any) -> None:
         """Copy file to Docker container."""
