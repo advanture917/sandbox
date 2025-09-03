@@ -32,5 +32,5 @@ class SupportedLanguage(StrEnum):
 class DefaultImage(StrEnum):
     """当前的默认镜像"""
     # TODO 添加更多语言
-    PYTHON = "ghcr.io/advanture917/learn:v1"
+    PYTHON = "my-sandbox"
     GO = ""

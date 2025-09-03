@@ -1,8 +1,11 @@
 import docker
 from typing import Any
 from pathlib import Path
+import uuid
+import base64
 from sandbox.const import DefaultImage,SupportedLanguage
 from sandbox.data import ExecutionRequest
+from sandbox.util import logger
 # 实现Docker容器子类
 
 class DockerBackend:
@@ -83,37 +86,60 @@ class DockerBackend:
         result = container.exec_run(cmd = command)
         # print(f"✅✅{result}")
         return result.exit_code or 0, result.output
+    def _get_install_command(self,language:SupportedLanguage = SupportedLanguage.PYTHON ,libraries : list[str]=None)-> list[str]:
+        match language:
+            case SupportedLanguage.PYTHON:
+                # pip install 直接接收列表元素作为参数
+                return ["pip", "install", "--quiet"] + libraries
+
+            case SupportedLanguage.GO:
+                # go get 接收包名列表
+                return ["go", "get"] + libraries
+            case _:
+                logger.error(f"不支持的语言: {language}")
+                return []
+
+
+    def _create_file(self,container:Any,code:str,language: SupportedLanguage= SupportedLanguage.PYTHON)-> str:
+        file_path =""
+        file_ext = {
+            SupportedLanguage.PYTHON: ".py",
+            SupportedLanguage.GO: ".go",
+        }.get(language, ".txt")
+        unique_id = uuid.uuid4().hex  # 生成32位随机字符串
+        file_path = f"/sandbox/code_{unique_id}{file_ext}"
+        # 对代码进行base64编码，避免所有特殊字符
+        encoded_code = base64.b64encode(code.encode()).decode()
+
+        # 在容器内解码并写入文件
+        command = [
+            "sh", "-c",
+            f'echo "{encoded_code}" | base64 -d > {file_path}'
+        ]
+        container.exec_run(command)
+        return file_path
+    def _get_run_command(self,file_path :str,language:SupportedLanguage=SupportedLanguage.PYTHON)->list[str]:
+        """生成代码执行命令"""
+        match language:
+            case SupportedLanguage.PYTHON:
+                return ["python", file_path]
+            case SupportedLanguage.GO:
+                return ["go", "run", file_path]
+
     def run_code(self,container:Any , req:ExecutionRequest):
         code = req.code
         language = req.language
         libraries = req.dependencies
-        install_code = ""
-        # 对command 添加 安装依赖库
-        match language:
-            case SupportedLanguage.PYTHON:
-                install_code = f"""
-import subprocess
-import sys
-import os
-
-# 安装用户指定的依赖库（静默模式）
-libraries = {libraries}
-if libraries is not None:
-    for lib in libraries:
-    # 使用--quiet参数减少输出，并重定向stdout和stderr
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--quiet", lib],
-            stdout=open(os.devnull, 'w'),
-            stderr=subprocess.STDOUT
-        )
-# 执行用户提供的代码
-{code}
-                """
-            case SupportedLanguage.GO:
-                pass
-
-        command = ["python", "-c", install_code]
-        print(f"{install_code}")
+        # 处理包依赖
+        if libraries is not  None:
+            install_command = self._get_install_command(language = language,libraries=libraries)
+            logger.info(f"install command is {install_command}")
+            container.exec_run(cmd = install_command)
+        file_path = self._create_file(container =container,code = code,language=language)
+        # 将代码保存为对应的文件后执行
+        # res = container.exec_run(["ls","/tmp/sandbox"])
+        # logger.info(f"{res.output.decode('utf-8')}")
+        command = self._get_run_command(file_path = file_path, language=language)
         result = container.exec_run(command)
         return result.output.decode('utf-8')
 
