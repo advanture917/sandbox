@@ -1,3 +1,5 @@
+from multipart import file_path
+
 from sandbox.session import  SandboxSession
 # def run_code(self,code:str, dependencies: list[str] | None = None):
 # code ="""
@@ -19,26 +21,26 @@ def simple_charts():
     x = np.arange(1, 11)
     y1 = np.random.randint(1, 10, 10)
     y2 = np.random.randint(1, 10, 10)
-    
+
     # 创建图表
     plt.figure(figsize=(12, 4))
-    
+
     # 折线图
     plt.subplot(131)
     plt.plot(x, y1)
     plt.title('Line Chart')
     plt.grid(True)
-    
+
     # 柱状图
     plt.subplot(132)
     plt.bar(x, y2)
     plt.title('Bar Chart')
-    
+
     # 散点图
     plt.subplot(133)
     plt.scatter(x, y1, color='red')
     plt.title('Scatter Plot')
-    
+
     # 调整布局并显示
     plt.tight_layout()
     save_path = f"output/xxx.svg"
@@ -50,9 +52,19 @@ if __name__ == "__main__":
     simple_charts()
 
 """
-
+file_path = r"output/xxx.svg"
 libraries = ['numpy','matplotlib']
 with SandboxSession() as sb:
-    result = sb.run_code(code =code ,dependencies= libraries )
+    result = sb.run_code(code =code ,dependencies= libraries ,file_path = file_path)
     time.sleep(30)
     print("stdout:", result)
+# code = """
+# with open('test.txt', 'w') as file:
+#     file.write('hello')
+# """
+# file_path = r"/test.txt"
+# with SandboxSession() as sb:
+#
+#     result = sb.run_code(code =code,file_path=file_path)
+#     # time.sleep(30)
+#     print("stdout:", result)

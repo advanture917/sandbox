@@ -98,6 +98,12 @@ class ExecutionRequest:
     dependencies: list[str] | None = None
     # timeout: int = 30
 
+@dataclass
+class ExeGenFileRequest:
+    code: str
+    language: SupportedLanguage =SupportedLanguage.PYTHON
+    dependencies: list[str] | None = None
+    file_path :list[str] | str = None
 @dataclass(frozen=True)
 class ExecutionResult(ConsoleOutput):
     r"""Represents the comprehensive result of code execution within a sandbox session.

@@ -4,8 +4,9 @@ from pathlib import Path
 import uuid
 import base64
 from sandbox.const import DefaultImage,SupportedLanguage
-from sandbox.data import ExecutionRequest
+from sandbox.data import ExecutionRequest,ExeGenFileRequest
 from sandbox.util import logger
+
 # 实现Docker容器子类
 
 class DockerBackend:
@@ -127,6 +128,7 @@ class DockerBackend:
                 return ["go", "run", file_path]
 
     def run_code(self,container:Any , req:ExecutionRequest):
+        """ run code in docker container."""
         code = req.code
         language = req.language
         libraries = req.dependencies
@@ -142,6 +144,48 @@ class DockerBackend:
         command = self._get_run_command(file_path = file_path, language=language)
         result = container.exec_run(command)
         return result.output.decode('utf-8')
+
+    def run_code_get_file(self, container: Any, req: ExeGenFileRequest):
+        """
+        run code in docker container and return generated files' content and stat
+        """
+        ret = self.run_code(
+            container=container,
+            req=ExecutionRequest(
+                code=req.code,
+                language=req.language,
+                dependencies=req.dependencies
+            )
+        )
+        logger.info(f"run output is {ret}")
+
+        file_paths = req.file_path
+        if isinstance(file_paths, str):
+            file_paths = [file_paths]
+
+        if not isinstance(file_paths, list) or not file_paths:
+            logger.warning("未提供有效的文件路径列表")
+            return None, None
+
+        files_content, files_stat = [], []
+        for container_file_path in file_paths:
+            try:
+                if not container_file_path.startswith("/sandbox/"):
+                    container_file_path = f"/sandbox/{container_file_path.lstrip('/')}"
+
+                logger.info(f"🎉 开始复制文件{container_file_path}")
+                res = container.exec_run(["pwd"])
+                logger.info(f"当前工作目录: {res.output.decode()}")
+
+                res = container.exec_run(["ls"])
+                logger.info(f"当前目录内容{res.output.decode("utf-8")}")
+                content, stat = self.copy_from_container(container, container_file_path)
+                files_content.append(content)
+                files_stat.append(stat)
+            except Exception as e:
+                logger.error(f"从容器复制文件失败: {container_file_path}, 错误: {e}")
+
+        return files_content, files_stat
 
     def remove_container (self,container :Any):
         return container.remove(v = True)
@@ -163,4 +207,3 @@ class DockerBackend:
         """Copy file from Docker container."""
         data, stat = container.get_archive(src)
         return b"".join(data), stat
-
