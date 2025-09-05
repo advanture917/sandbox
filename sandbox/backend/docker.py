@@ -143,7 +143,8 @@ class DockerBackend:
         # logger.info(f"{res.output.decode('utf-8')}")
         command = self._get_run_command(file_path = file_path, language=language)
         result = container.exec_run(command)
-        return result.output.decode('utf-8')
+        # return result.output.decode('utf-8')
+        return  result
 
     def run_code_get_file(self, container: Any, req: ExeGenFileRequest):
         """

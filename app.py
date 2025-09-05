@@ -27,8 +27,9 @@ def run_code_ui(code: str, language: str, libraries: str,file_path : list[str]|s
         # 执行代码
         with SandboxSession(language=SupportedLanguage[language]) as session:
             result = session.run_code(code=code, dependencies=libs,file_path=fps)
-
-            return f"执行结果:\n{result}" if file_path is None else f"已生成{result}"
+            if file_path is not  None:
+                logger.info(f"🤩{file_path}")
+            return f"执行结果:\n{result}" if file_path == ""  else f"已生成{result}"
 
     except Exception as e:
         return f"执行出错: {str(e)}"

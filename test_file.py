@@ -2,15 +2,6 @@ from multipart import file_path
 
 from sandbox.session import  SandboxSession
 # def run_code(self,code:str, dependencies: list[str] | None = None):
-# code ="""
-import numpy as np
-
-# # Create an array
-# arr = np.array([1, 2, 3, 4, 5])
-# print(f"Array: {arr}")
-# print(f"Mean: {np.mean(arr)}")
-# print(f"Sum: {np.sum(arr)}")
-# # """
 import time
 # code = """
 # import numpy as np
@@ -53,11 +44,19 @@ import time
 #
 # """
 # file_path = r"output/xxx.svg"
-# libraries = ['numpy','matplotlib']
-# with SandboxSession() as sb:
-#     result = sb.run_code(code =code ,dependencies= libraries ,file_path = file_path)
-#     time.sleep(30)
-#     print("stdout:", result)
+code ="""
+import numpy as np
+
+# Create an array
+arr = np.array([1, 2, 3, 4, 5])
+print(f"Array: {arr}")
+print(f"Mean: {np.mean(arr)}")
+print(f"Sum: {np.sum(arr)}")
+"""
+libraries = ['numpy']
+with SandboxSession() as sb:
+    result = sb.run_code(code =code ,dependencies= libraries ,file_path = file_path)
+    print("stdout:", result)
 code = """
 with open('test1.txt', 'w') as file:
     file.write('hello')
@@ -67,7 +66,5 @@ with open('test2.txt', 'w') as file:
 """
 file_path = ['test1.txt','test2.txt']
 with SandboxSession() as sb:
-
     result = sb.run_code(code =code,file_path=file_path)
-    # time.sleep(30)
     print("stdout:", result)
