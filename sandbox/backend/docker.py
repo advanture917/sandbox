@@ -23,9 +23,12 @@ class DockerBackend:
         # 语言到镜像的映射关系
         self.lang_to_image = {
             SupportedLanguage.PYTHON: DefaultImage.PYTHON,
-            # 待添加
-            SupportedLanguage.GO:DefaultImage.GO
-
+            SupportedLanguage.GO: DefaultImage.GO,
+            SupportedLanguage.JAVA: DefaultImage.JAVA,
+            SupportedLanguage.JAVASCRIPT: DefaultImage.JAVASCRIPT,
+            SupportedLanguage.CPP: DefaultImage.CPP,
+            SupportedLanguage.RUBY: DefaultImage.RUBY,
+            SupportedLanguage.R: DefaultImage.R
         }
     # 对于container 的增删改查
     def create_container(self, lang: str,  **kwargs):
@@ -70,8 +73,10 @@ class DockerBackend:
         """Stop Docker container."""
         container.stop()
 
-    def execute_command(self, container: Any, command: str, **kwargs: Any) -> tuple[int, Any]:
+    def execute_command(self, container: Any, command: str, **kwargs: Any) -> 'CommandResult':
         """Execute command in Docker container."""
+        from sandbox.data import CommandResult
+        
         workdir = kwargs.get("workdir")
         exec_kwargs: dict[str, Any] = {
             "cmd": command,
@@ -85,8 +90,19 @@ class DockerBackend:
             exec_kwargs["workdir"] = workdir
 
         result = container.exec_run(cmd = command)
-        # print(f"✅✅{result}")
-        return result.exit_code or 0, result.output
+        # 获取退出码
+        exit_code = result.exit_code or 0
+        logger.info(f"res {result}")
+        if exit_code == 0 :
+            stdout = result.output.decode('utf-8')
+            stderr = ""
+        else :
+            stderr = result.output.decode('utf-8')
+            stdout = ""
+        print(f"退出码: {exit_code}")
+        print(f"标准输出:\n{stdout}")
+        print(f"标准错误:\n{stderr}")
+        return CommandResult(exit_code=exit_code, stdout=stdout, stderr=stderr)
     def _get_install_command(self,language:SupportedLanguage = SupportedLanguage.PYTHON ,libraries : list[str]=None)-> list[str]:
         match language:
             case SupportedLanguage.PYTHON:
@@ -96,6 +112,21 @@ class DockerBackend:
             case SupportedLanguage.GO:
                 # go get 接收包名列表
                 return ["go", "get"] + libraries
+            case SupportedLanguage.JAVA:
+                # Java的依赖处理可能需要Maven或Gradle，这里简化处理
+                return ["echo", "Java dependencies not implemented"]
+            case SupportedLanguage.JAVASCRIPT:
+                # npm install
+                return ["npm", "install"] + libraries
+            case SupportedLanguage.CPP:
+                # C++的依赖处理可能需要apt-get或其他包管理器，这里简化处理
+                return ["echo", "C++ dependencies not implemented"]
+            case SupportedLanguage.RUBY:
+                # gem install
+                return ["gem", "install"] + libraries
+            case SupportedLanguage.R:
+                # R的依赖处理可能需要install.packages，这里简化处理
+                return ["echo", "R dependencies not implemented"]
             case _:
                 logger.error(f"不支持的语言: {language}")
                 return []
@@ -106,6 +137,11 @@ class DockerBackend:
         file_ext = {
             SupportedLanguage.PYTHON: ".py",
             SupportedLanguage.GO: ".go",
+            SupportedLanguage.JAVA: ".java",
+            SupportedLanguage.JAVASCRIPT: ".js",
+            SupportedLanguage.CPP: ".cpp",
+            SupportedLanguage.RUBY: ".rb",
+            SupportedLanguage.R: ".R",
         }.get(language, ".txt")
         unique_id = uuid.uuid4().hex  # 生成32位随机字符串
         file_path = f"/sandbox/code_{unique_id}{file_ext}"
@@ -126,6 +162,18 @@ class DockerBackend:
                 return ["python", file_path]
             case SupportedLanguage.GO:
                 return ["go", "run", file_path]
+            case SupportedLanguage.JAVA:
+                # Java需要先编译再运行，这里简化处理
+                return ["java", file_path]
+            case SupportedLanguage.JAVASCRIPT:
+                return ["node", file_path]
+            case SupportedLanguage.CPP:
+                # C++需要先编译再运行，这里简化处理
+                return ["./a.out"]
+            case SupportedLanguage.RUBY:
+                return ["ruby", file_path]
+            case SupportedLanguage.R:
+                return ["Rscript", file_path]
 
     def run_code(self,container:Any , req:ExecutionRequest):
         """ run code in docker container."""
@@ -179,7 +227,7 @@ class DockerBackend:
                 logger.info(f"当前工作目录: {res.output.decode()}")
 
                 res = container.exec_run(["ls"])
-                logger.info(f"当前目录内容{res.output.decode("utf-8")}")
+                logger.info(f"当前目录内容{res.output.decode('utf-8')}")
                 content, stat = self.copy_from_container(container, container_file_path)
                 files_content.append(content)
                 files_stat.append(stat)
@@ -198,13 +246,24 @@ class DockerBackend:
         import tarfile
 
         tar_stream = io.BytesIO()
-        with tarfile.open(fileobj=tar_stream, mode="w") as tar:
+        with tarfile.open(fileobj=tar_stream, mode='w') as tar:
             tar.add(src, arcname=Path(dest).name)
-
         tar_stream.seek(0)
-        container.put_archive(Path(dest).parent.as_posix(), tar_stream.getvalue())
+        container.put_archive(path=Path(dest).parent.as_posix(), data=tar_stream.getvalue())
 
-    def copy_from_container(self, container: Any, src: str, **_kwargs: Any) -> tuple[bytes, dict]:
+    def copy_from_container(self, container: Any, src: str) -> tuple[bytes, dict]:
         """Copy file from Docker container."""
-        data, stat = container.get_archive(src)
-        return b"".join(data), stat
+        import io
+        import tarfile
+        
+        tar_data, tar_stat = container.get_archive(src)
+        tar_bytes = b''.join(tar_data)
+        
+        # 解析tar文件
+        tar_stream = io.BytesIO(tar_bytes)
+        with tarfile.open(fileobj=tar_stream, mode='r') as tar:
+            member = tar.getmember(Path(src).name)
+            f = tar.extractfile(member)
+            if f is None:
+                raise IOError(f"无法从tar中提取文件: {src}")
+            return f.read(), tar_stat

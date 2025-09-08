@@ -2,7 +2,10 @@ import gradio as gr
 from sandbox.session import SandboxSession
 from sandbox.const import SupportedLanguage
 from sandbox.util import logger
-
+from sandbox.backend.base import BackendFactory
+from sandbox.backend.docker import DockerBackend
+from sandbox.backend.k8s import K8sBackend
+from sandbox.const import BackendType
 def run_code_ui(code: str, language: str, libraries: str,file_path : list[str]|str =None) -> str:
     """
     用于Gradio界面的代码执行函数
@@ -23,12 +26,13 @@ def run_code_ui(code: str, language: str, libraries: str,file_path : list[str]|s
         # 验证语言类型
         if language not in SupportedLanguage.__members__:
             return f"错误: 不支持的语言 {language}\n支持的语言: {list(SupportedLanguage.__members__.keys())}"
-
+        import time
         # 执行代码
         with SandboxSession(language=SupportedLanguage[language]) as session:
             result = session.run_code(code=code, dependencies=libs,file_path=fps)
             if file_path is not  None:
                 logger.info(f"🤩{file_path}")
+                time.sleep(30)
             return f"执行结果:\n{result}" if file_path == ""  else f"已生成{result}"
 
     except Exception as e:
@@ -88,5 +92,7 @@ with gr.Blocks(title="代码沙箱执行环境") as demo:
     )
 
 if __name__ == "__main__":
+    # BackendFactory.register_backend('docker', DockerBackend)
+    BackendFactory.register_backend('kubernetes', K8sBackend)
     demo.launch(debug=True)
 

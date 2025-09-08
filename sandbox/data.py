@@ -105,6 +105,21 @@ class ExeGenFileRequest:
     dependencies: list[str] | None = None
     file_path :list[str] | str = None
 @dataclass(frozen=True)
+class CommandResult:
+    r"""Represents the result of a command execution.
+
+    Attributes:
+        exit_code (int): The exit code of the executed command. 0 typically indicates success.
+        stdout (str): The content written to the standard output stream.
+        stderr (str): The content written to the standard error stream.
+    """
+
+    exit_code: int = 0
+    stdout: str = ""
+    stderr: str = ""
+
+
+@dataclass(frozen=True)
 class ExecutionResult(ConsoleOutput):
     r"""Represents the comprehensive result of code execution within a sandbox session.
 

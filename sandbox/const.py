@@ -32,5 +32,10 @@ class SupportedLanguage(StrEnum):
 class DefaultImage(StrEnum):
     """当前的默认镜像"""
     # TODO 添加更多语言
-    PYTHON = "my-sandbox"
-    GO = ""
+    PYTHON = "ghcr.io/advanture917/sandbox/python:latest"
+    GO = "golang:1.17-alpine"
+    JAVA = "openjdk:11-jre-slim"
+    JAVASCRIPT = "node:16-alpine"
+    CPP = "gcc:latest"
+    RUBY = "ruby:3.0-alpine"
+    R = "r-base:latest"

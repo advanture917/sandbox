@@ -1,32 +1,38 @@
 import docker
 import os
 from sandbox.const import BackendType,SupportedLanguage
-from sandbox.backend.base import Backend
+from sandbox.backend.base import Backend, BackendFactory
 from sandbox.backend.docker import DockerBackend
+from sandbox.backend.k8s import K8sBackend
 from sandbox.errors import  BackendError,BackendNotAvailable
 from sandbox.util import logger
 from sandbox.data import ExecutionRequest, ExeGenFileRequest
 from typing import Any
 import io, tarfile
+
 class SandboxSession:
     def __init__(
             self,
-            backend:BackendType = BackendType.DOCKER,
+            backend_type:BackendType = BackendType.DOCKER,
             language:SupportedLanguage = SupportedLanguage.PYTHON):
-        self.backend_type = backend
+        self.backend_type = backend_type
         self.language = language
         self.backend = None
         self.container = None
 
     def __enter__(self):
         """进入上下文时启动 backend"""
-        if self.backend_type == BackendType.DOCKER:
-            client = docker.from_env()
-            self.backend = DockerBackend(client=client)
+        # 使用工厂模式创建后端实例
+        if self.backend_type in BackendFactory.get_available_backends():
+            if self.backend_type == BackendType.DOCKER:
+                client = docker.from_env()
+                self.backend = BackendFactory.create_backend(self.backend_type, client=client)
+            elif self.backend_type == BackendType.KUBERNETES:
+                self.backend = BackendFactory.create_backend(self.backend_type)
         else:
             raise BackendNotAvailable(f"Backend {self.backend_type} not implemented")
 
-        logger.info(f"Creating container for language={self.language}")
+        logger.info(f"Creating container for language={self.language} and backend = {self.backend_type}")
         self.container = self.backend.create_container(lang=self.language)
 
         logger.info("Starting container...")
@@ -49,7 +55,7 @@ class SandboxSession:
                 except Exception as e:
                     logger.error(f"Failed to remove container: {e}")
 
-    def exe_command(self,command:str,**kwargs:Any):
+    def exe_command(self,command:str,**kwargs:Any) -> 'CommandResult':
         return self.backend.execute_command(self.container,command,**kwargs)
 
     def run_code(self, code: str, dependencies: list[str] | None = None, file_path: list[str] | str = None):
