@@ -139,7 +139,7 @@ class K8sBackend(Backend):
         logger.info(f'stderr {stderr}')
         return CommandResult(exit_code=exit_code, stdout=stdout, stderr=stderr)
     
-    def run_code(self, container: Any, req: ExecutionRequest):
+    def run_code(self, container: Any, req: ExecutionRequest) -> 'CommandResult':
         """在Kubernetes容器中运行代码"""
         code = req.code
         language = req.language
@@ -157,7 +157,7 @@ class K8sBackend(Backend):
         command = self._get_run_command(file_path=file_path, language=language)
         result = self.execute_command(container, " ".join(command))
         
-        return result.exit_code, result.stdout
+        return result
     
     def remove_container(self, container: Any):
         """删除容器（删除Deployment）"""

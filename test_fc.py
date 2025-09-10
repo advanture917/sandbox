@@ -104,9 +104,7 @@ response = client.chat.completions.create(
 )
 
 
-# print("返回对象：")
-# print(response.choices[0].message.model_dump_json())
-# print("\n")
+
 function_name = response.choices[0].message.tool_calls[0].function.name
 arguments_string = response.choices[0].message.tool_calls[0].function.arguments
 # 使用json模块解析参数字符串
@@ -118,7 +116,6 @@ print(f"✅{arguments}")
 # 创建一个函数映射表
 function_mapper = {
     "execute_code": execute_code,
-    # "get_current_time": get_current_time
 }
 # 获取函数实体
 function = function_mapper[function_name]

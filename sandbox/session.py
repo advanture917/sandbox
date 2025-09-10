@@ -113,6 +113,7 @@ class SandboxSession:
                 base, ext = os.path.splitext(local_path)
                 counter = 1
                 while os.path.exists(local_path):
+                    logger.info(f"{local_path} had exist")
                     local_path = f"{base}_{counter}{ext}"
                     counter += 1
                 with open(local_path, "wb") as f:

@@ -2,3 +2,6 @@ gradio
 docker
 fastmcp
 kubernetes
+langchain
+langchain-openai
+python-dotenv

@@ -175,7 +175,7 @@ class DockerBackend:
             case SupportedLanguage.R:
                 return ["Rscript", file_path]
 
-    def run_code(self,container:Any , req:ExecutionRequest):
+    def run_code(self,container:Any , req:ExecutionRequest) -> 'CommandResult':
         """ run code in docker container."""
         code = req.code
         language = req.language
@@ -192,7 +192,16 @@ class DockerBackend:
         command = self._get_run_command(file_path = file_path, language=language)
         result = container.exec_run(command)
         # return result.output.decode('utf-8')
-        return  result
+        # 获取退出码
+        exit_code = result.exit_code or 0
+        if exit_code == 0 :
+            stdout = result.output.decode('utf-8')
+            stderr = ""
+        else :
+            stderr = result.output.decode('utf-8')
+            stdout = ""
+        from sandbox.data import CommandResult
+        return CommandResult(exit_code=exit_code, stdout=stdout, stderr=stderr)
 
     def run_code_get_file(self, container: Any, req: ExeGenFileRequest):
         """
@@ -253,17 +262,5 @@ class DockerBackend:
 
     def copy_from_container(self, container: Any, src: str) -> tuple[bytes, dict]:
         """Copy file from Docker container."""
-        import io
-        import tarfile
-        
-        tar_data, tar_stat = container.get_archive(src)
-        tar_bytes = b''.join(tar_data)
-        
-        # 解析tar文件
-        tar_stream = io.BytesIO(tar_bytes)
-        with tarfile.open(fileobj=tar_stream, mode='r') as tar:
-            member = tar.getmember(Path(src).name)
-            f = tar.extractfile(member)
-            if f is None:
-                raise IOError(f"无法从tar中提取文件: {src}")
-            return f.read(), tar_stat
+        data, stat = container.get_archive(src)
+        return b"".join(data), stat

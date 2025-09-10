@@ -9,4 +9,6 @@ dependencies = [
     "docker",
     "fastmcp",
     "kubernetes",
+    "langchain",
+    "langchain-openai",
 ]

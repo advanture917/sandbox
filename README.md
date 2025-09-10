@@ -4,7 +4,7 @@
 
 ## 特性
 
-- 支持多种编程语言（Python, Go, Java, JavaScript, C++, Ruby, R等）
+- 支持多种编程语言（Python, Go）
 - 支持多种容器方式（Docker, Kubernetes）
 - 使用工厂模式管理不同的后端实现
 - 易于扩展以支持更多语言和容器方式
@@ -43,18 +43,50 @@ with SandboxSession(backend=BackendType.KUBERNETES, language=SupportedLanguage.P
     print(f"Output: {result.stdout}")
 ```
 
-## 扩展
 
-### 添加新的语言支持
+## 使用SandboxLLM
 
-1. 在`sandbox/const.py`中的`SupportedLanguage`枚举中添加新的语言
-2. 在`sandbox/const.py`中的`DefaultImage`枚举中为新语言添加默认镜像
-3. 在`sandbox/backend/docker.py`和`sandbox/backend/k8s.py`中更新语言到镜像的映射关系
-4. 在`sandbox/backend/docker.py`中实现新语言的依赖处理和代码执行命令
+SandboxLLM 是一个基于 Langchain 的 LLM，可以生成代码并在沙箱中执行。如果代码执行失败或输出不符合预期，它会自动重试并修复代码。
 
-### 添加新的容器方式
+```python
+from sandbox.llm import SandboxLLM
+from sandbox.const import BackendType, SupportedLanguage
+import os
 
-1. 创建新的后端实现类，继承自`sandbox/backend/base.py`中的`Backend`类
-2. 在`sandbox/backend/__init__.py`中注册新的后端实现
-3. 在`sandbox/const.py`中的`BackendType`枚举中添加新的容器方式
-4. 在`sandbox/session.py`中添加新容器方式的处理逻辑
+# Initialize the SandboxLLM for Python
+llm_python = SandboxLLM(
+    backend_type=BackendType.DOCKER, 
+    model_name=os.environ.get('MODEL_NAME', 'Qwen/Qwen3-30B-A3B-Thinking-2507'),
+    base_url=os.environ.get('BASE_URL', ''),
+    api_key=os.environ.get('API_KEY', ''),
+    language=SupportedLanguage.PYTHON
+)
+
+
+# Run a task with dependencies 
+task = "Create a numpy array with values from 1 to 10, calculate the mean and print it."
+result = llm_python.run_code(task)
+print(f"Exit code: {result.exit_code}")
+print(f"Output: {result.stdout}")
+
+# Test task that intentionally generates a SyntaxError
+# This is used to test the LLM automatic code correction logic
+task2 = """
+编写 Python 代码生成前 20 个斐波那契数列的平方，并将它们按从大到小排序后打印。
+请在代码中故意引入一个语法错误，例如在循环中缺少冒号。
+"""
+print("\nRunning task 2: Create a numpy array and calculate the mean")
+result2 = llm_python.run_code(task2)
+print(f"Exit code: {result2.exit_code}")
+print(f"Stdout: {result2.stdout}")
+print(f"Stderr: {result2.stderr}")
+
+
+```
+
+### LLM 功能特性
+
+- **自动代码生成**：根据自然语言任务描述生成相应语言的代码
+- **依赖管理**：自动识别并安装代码所需的依赖库
+- **错误修复**：当代码执行失败时，自动分析错误并修复代码
+- **输出验证**：可选的输出验证功能，确保执行结果符合预期
